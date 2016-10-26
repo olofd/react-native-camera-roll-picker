@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import ImageItem from './ImageItem';
+import RNPhotosFramework from 'react-native-photos-framework';
 
 class CameraRollPicker extends Component {
   constructor(props) {
@@ -41,39 +42,28 @@ class CameraRollPicker extends Component {
   }
 
   _fetch() {
-    var {groupTypes, assetType} = this.props;
-
-    var fetchParams = {
-      first: 1000,
-      groupTypes: groupTypes,
-      assetType: assetType,
-    };
-
-    if (Platform.OS === "android") {
-      // not supported in android
-      delete fetchParams.groupTypes;
-    }
-
-    if (this.state.lastCursor) {
-      fetchParams.after = this.state.lastCursor;
-    }
-
-    CameraRoll.getPhotos(fetchParams)
-      .then((data) => this._appendImages(data), (e) => console.log(e));
+    RNPhotosFramework.getAssets({
+      fetchId : 'this-is-for-caching-purposes',
+      startIndex : this.state.images.length,
+      endIndex : this.state.images.length +  100,
+      prepareForDisplay : {
+        width : 25,
+        height : 25
+      }
+    }).then((data) => this._appendImages(data), (e) => console.log(e));
   }
 
   _appendImages(data) {
-    var assets = data.edges;
+    var assets = data.assets;
     var newState = {
       loadingMore: false,
     };
 
-    if (!data.page_info.has_next_page) {
+    if (data.includesLastAsset) {
       newState.noMore = true;
     }
 
     if (assets.length > 0) {
-      newState.lastCursor = data.page_info.end_cursor;
       newState.images = this.state.images.concat(assets);
       newState.dataSource = this.state.dataSource.cloneWithRows(
         this._nEveryRow(newState.images, this.props.imagesPerRow)
@@ -128,7 +118,7 @@ class CameraRollPicker extends Component {
       containerWidth
     } = this.props;
 
-    var uri = item.node.image.uri;
+    var uri = item.uri;
     var isSelected = (this._arrayObjectIndexOf(selected, 'uri', uri) >= 0) ? true : false;
 
     return (
